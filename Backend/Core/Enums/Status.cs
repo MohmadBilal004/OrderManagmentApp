@@ -5,6 +5,6 @@ namespace Core.Enums
         PENDING,
         DRAFT,
         COMPLETED,
-        SHIPPED
+        SHIPPED,
     }
 }
