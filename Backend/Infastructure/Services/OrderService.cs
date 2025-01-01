@@ -19,9 +19,7 @@ namespace Infrastructure.Services
         {
             var context = _contextFactory.CreateDbContext();
 
-            return context.Orders
-                    .Where(o => !o.IsDeleted)
-                    .Include(o => o.Customer);
+            return context.Orders.Where(o => !o.IsDeleted).Include(o => o.Customer);
         }
 
         public async Task<Order> AddOrUpdateOrderAsync(OrderModel orderModel)
@@ -29,14 +27,14 @@ namespace Infrastructure.Services
             var context = _contextFactory.CreateDbContext();
             Order order;
 
-            var customer = await context.Customers
-                            .Where(c => c.Id == orderModel.CustomerId)
-                            .FirstOrDefaultAsync();
-            
-            if(customer == null)
+            var customer = await context
+                .Customers.Where(c => c.Id == orderModel.CustomerId)
+                .FirstOrDefaultAsync();
+
+            if (customer == null)
                 throw new Exception($"Customer with id {orderModel.CustomerId} was not found");
-            
-            if(orderModel.Id == null)
+
+            if (orderModel.Id == null)
             {
                 order = new Order
                 {
@@ -47,20 +45,20 @@ namespace Infrastructure.Services
                     DepositAmount = orderModel.DepositAmount,
                     IsDelivery = orderModel.IsDelivery,
                     Status = orderModel.Status,
-                    OtherNotes = orderModel.OtherNotes
+                    OtherNotes = orderModel.OtherNotes,
                 };
 
                 await context.Orders.AddAsync(order);
             }
             else
             {
-                order = await context.Orders
-                            .Where(o => o.Id == orderModel.Id)
-                            .FirstOrDefaultAsync();
+                order = await context
+                    .Orders.Where(o => o.Id == orderModel.Id)
+                    .FirstOrDefaultAsync();
 
-                if(order == null)
+                if (order == null)
                     throw new Exception($"Order with id {orderModel.Id} was not found");
-    
+
                 order.OrderDate = orderModel.OrderDate;
                 order.Description = orderModel.Description;
                 order.TotalAmount = orderModel.TotalAmount;
@@ -80,12 +78,10 @@ namespace Infrastructure.Services
         {
             var context = _contextFactory.CreateDbContext();
 
-            var order = await context.Orders
-                            .Where(o => o.Id == orderId)
-                            .FirstOrDefaultAsync();
-            
-            if(order == null)
-                 throw new Exception($"Order with id {orderId} was not found");
+            var order = await context.Orders.Where(o => o.Id == orderId).FirstOrDefaultAsync();
+
+            if (order == null)
+                throw new Exception($"Order with id {orderId} was not found");
 
             order.IsDeleted = true;
 
