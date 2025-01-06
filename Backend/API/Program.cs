@@ -9,37 +9,63 @@ var AllowSpecificOrigins = "_allowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContextFactory<OMAContext>(options =>
+builder.Services.AddDbContextFactory<OMAContext>(options => 
 {
-    options.UseInMemoryDatabase("InMemoryDb");
+    options.UseSqlite(builder.Configuration["ConnectionStrings:DefaultConnection"]);
 });
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 
-// CORS configuration
-builder.Services.AddCors(options =>
+// graphql
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    
+    .AddFiltering();
+
+// cors
+builder.Services.AddCors(options => 
 {
-    options.AddPolicy(
-        AllowSpecificOrigins,
-        builder =>
+    options.AddPolicy(name: AllowSpecificOrigins,
+        policy => 
         {
-            builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
-        }
-    );
+            policy.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
 });
 
-// GraphQL
-builder.Services.AddGraphQLServer().AddQueryType<Query>().AddFiltering();
+builder.Services.AddMvc(option => option.EnableEndpointRouting = false);
 
 var app = builder.Build();
 
-// Enable CORS
+app.UseRouting();
+app.UseMvc();
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseCors(AllowSpecificOrigins);
 
-// GraphQL endpoint
 app.MapGraphQL();
 
-// GraphQL Voyager endpoint for exploring the GraphQL API
 app.UseGraphQLVoyager("/graphql-voyager", new VoyagerOptions { GraphQLEndPoint = "/graphql" });
+
+app.UseEndpoints(endpoints => 
+{
+    endpoints.MapFallbackToController("Index", "Website");
+});
+
+// Migrate Database
+try
+{
+    var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<OMAContext>();
+    context.Database.Migrate();
+}
+catch(Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "An error occured during migration");
+}
 
 app.Run();
