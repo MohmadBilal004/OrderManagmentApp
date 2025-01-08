@@ -9,25 +9,25 @@ var AllowSpecificOrigins = "_allowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContextFactory<OMAContext>(options => 
+builder.Services.AddDbContextFactory<OMAContext>(options =>
 {
     options.UseSqlite(builder.Configuration["ConnectionStrings:DefaultConnection"]);
 });
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 
-// graphql
+// Add GraphQL services
 builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>()
-    
+    .AddMutationType<Mutation>()
     .AddFiltering();
 
-// cors
-builder.Services.AddCors(options => 
+// Add CORS services
+builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: AllowSpecificOrigins,
-        policy => 
+        policy =>
         {
             policy.AllowAnyOrigin()
                 .AllowAnyHeader()
@@ -35,37 +35,42 @@ builder.Services.AddCors(options =>
         });
 });
 
-builder.Services.AddMvc(option => option.EnableEndpointRouting = false);
+// Add controller services
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
+
+// Use routing
 app.UseRouting();
-app.UseMvc();
+
+// Enable static files and default files
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Enable CORS
 app.UseCors(AllowSpecificOrigins);
 
+// Map GraphQL and Voyager (UI for GraphQL)
 app.MapGraphQL();
-
 app.UseGraphQLVoyager("/graphql-voyager", new VoyagerOptions { GraphQLEndPoint = "/graphql" });
 
-app.UseEndpoints(endpoints => 
-{
-    endpoints.MapFallbackToController("Index", "Website");
-});
+// Use top-level endpoint mapping for controllers
+app.MapControllers();
 
 // Migrate Database
 try
 {
-    var scope = app.Services.CreateScope();
+    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<OMAContext>();
     context.Database.Migrate();
 }
-catch(Exception ex)
+catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occured during migration");
+    logger.LogError(ex, "An error occurred during migration");
 }
 
+// Run the app
 app.Run();
